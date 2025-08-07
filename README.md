@@ -115,7 +115,7 @@ NuCSI/
 ├── inputs/
 │   ├── raw_fastqgzs/          # Raw FASTQ files
 │   ├── qc_reads/              # Quality-controlled reads (auto-generated)
-│   └── plasmid/               # Reference plasmid FASTA files
+│   └── plasmid/               # Reference plasmid FASTA files (user-provided)
 ├── results/                   # Analysis results (auto-generated)
 └── scripts/                   # Analysis scripts
 ```
@@ -123,7 +123,13 @@ NuCSI/
 ### File Naming Conventions
 
 - **Raw FASTQ files**: `{sample}_R1_001.fastq.gz` and `{sample}_R2_001.fastq.gz`
-- **Plasmid references**: Any `.fasta` file in `inputs/plasmid/`
+- **Plasmid references**: Any `.fasta` file in `inputs/plasmid/` (you must provide your own reference sequences)
+
+### Required Setup
+
+1. **Place your raw FASTQ files** in `inputs/raw_fastqgzs/`
+2. **Add your plasmid reference** in `inputs/plasmid/` (e.g., `my_plasmid.fasta`)
+3. **Configure parameters** in `configs.yaml` if needed
 
 ## Output Files
 

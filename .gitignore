@@ -74,6 +74,10 @@ Thumbs.db
 *.fastq.gz
 *.fq
 *.fq.gz
+*.fa
+*.fasta
+*.fa.gz
+*.fasta.gz
 
 # Results and analysis files (protect analysis results)
 *.png
@@ -91,4 +95,3 @@ Thumbs.db
 !Makefile
 !setup.sh
 !scripts/*.py
-!inputs/plasmid/*.fasta
