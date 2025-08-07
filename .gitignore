@@ -1,12 +1,6 @@
 # NuCSI Project Gitignore
 # =======================
 
-# Input/Output directories (auto-generated)
-inputs/paired/
-inputs/qc_reads/
-inputs/raw_fastqgzs/
-results/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -91,7 +85,5 @@ Thumbs.db
 # Allow specific files
 !requirements.txt
 !README.md
-!configs.yaml
-!Makefile
-!setup.sh
+!nucsi.py
 !scripts/*.py

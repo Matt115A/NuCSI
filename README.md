@@ -1,200 +1,192 @@
-# NuCSI (Nuclease Cleavage Site Identification)
+# NuCSI: Nuclease Cleavage Site Identification Tool
 
-A comprehensive bioinformatics pipeline for identifying and analyzing nuclease cleavage sites from high-throughput sequencing data.
+A command-line interface for identifying nuclease cleavage sites from paired-end sequencing data.
 
 ## Overview
 
-NuCSI is designed to process Illumina sequencing data and identify nuclease cleavage sites through multiple analysis approaches:
-
-1. **Quality Control**: Process raw FASTQ files using fastp
-2. **Sequence Scanning**: Identify sequences between specified motifs
-3. **Plasmid Mapping**: Map reads to reference plasmids and analyze alignment positions
+NuCSI is a bioinformatics pipeline that processes paired-end sequencing data to identify nuclease cleavage sites on plasmid references. The tool performs quality control, sequence scanning, plasmid mapping, and coverage analysis to provide comprehensive insights into nuclease activity.
 
 ## Features
 
-- **Quality Control**: Automated FASTQ processing with configurable quality thresholds
-- **Motif-Based Sequence Extraction**: Extract sequences between upstream and downstream motifs
-- **Plasmid Mapping**: Map reads to circular plasmid references with statistical analysis
-- **Position Analysis**: Single-base resolution analysis of alignment start/end positions
-- **Multiple Testing Correction**: Bonferroni and Benjamini-Hochberg corrections for statistical significance
-- **Visualization**: Comprehensive plotting including zoom plots for top hit regions
+- **Quality Control**: Fastp-based quality filtering with configurable thresholds
+- **Sequence Scanning**: Automatic detection of sequences between specified motifs
+- **Plasmid Mapping**: BWA-based mapping to circular plasmid references
+- **Coverage Analysis**: Automatic detection of coverage drop-offs and zoomed analysis
+- **Statistical Analysis**: Multiple hypothesis testing correction and position analysis
+- **Visualization**: Comprehensive plots and coverage analysis
 
-## Installation
+## Quick Start
 
-### Prerequisites
-
-- Python 3.10+
-- Conda package manager
-- Unix-like operating system (Linux/macOS)
-
-### Setup
+### Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/Matt115A/NuCSI.git
-   cd NuCSI
-   ```
-
-2. Run the setup script:
-   ```bash
-   chmod +x setup.sh
-   ./setup.sh
-   ```
-
-3. Activate the conda environment:
-   ```bash
-   conda activate nucsi
-   ```
-
-## Usage
-
-### Quick Start
-
-Run the complete pipeline:
 ```bash
-make all
+git clone https://github.com/Matt115A/NuCSI.git
+cd NuCSI
 ```
 
-This will execute:
-1. Quality control of raw FASTQ files
-2. Sequence scanning between motifs
-3. Plasmid mapping and position analysis
-
-### Individual Steps
-
-#### 1. Quality Control
+2. Install dependencies:
 ```bash
-make qc_reads
-# or
-python scripts/fastp.py -c configs.yaml
+# Create conda environment
+conda env create -f environment.yml
+conda activate nucsi
+
+# Or install manually
+pip install -r requirements.txt
+conda install -c bioconda fastp bwa samtools
 ```
 
-Processes raw FASTQ files in `inputs/raw_fastqgzs/` and outputs quality-controlled reads to `inputs/qc_reads/`.
+### Basic Usage
 
-#### 2. Sequence Scanning
 ```bash
-make scan_sequences
-# or
-python scripts/scan_sequences.py -c configs.yaml
+# Single sample analysis
+nucsi.py -f sample_R1.fastq.gz sample_R2.fastq.gz -p plasmid.fasta -o results/
+
+# Multiple samples with automatic execution
+nucsi.py -f sample1_R1.fastq.gz sample1_R2.fastq.gz sample2_R1.fastq.gz sample2_R2.fastq.gz \
+         -p plasmid.fasta -o results/ -q 30 --run-pipeline
 ```
 
-Scans quality-controlled reads for sequences between specified upstream and downstream motifs. Results are saved in `results/consensus/`.
+## Command Line Options
 
-#### 3. Plasmid Mapping
-```bash
-make map_plasmid
-# or
-python scripts/map_to_plasmid.py -c configs.yaml
-```
-
-Maps reads to reference plasmids and performs detailed position analysis. Results are saved in `results/plasmid_mapping/`.
-
-### Configuration
-
-Edit `configs.yaml` to customize the analysis:
-
-```yaml
-# Input/Output Directories
-input_dir_raw: inputs/raw_fastqgzs
-output_dir_qc_reads: inputs/qc_reads
-results_base: results
-
-# Quality Control Parameters
-quality_threshold: 30
-
-# Sequence Scanning Parameters
-upstream: ccagcttcaaaa
-downstream: gcgctctgaagtt
-```
+| Option | Description | Required | Default |
+|--------|-------------|----------|---------|
+| `-f, --fastq-files` | Paired FASTQ files (R1 and R2 files) | Yes | - |
+| `-p, --plasmid` | Plasmid reference FASTA file | Yes | - |
+| `-o, --output-dir` | Output directory for results | Yes | - |
+| `-q, --quality-cutoff` | Quality cutoff for fastp | No | 30 |
+| `--run-pipeline` | Automatically run the pipeline after setup | No | False |
+| `--version` | Show program's version number | No | - |
+| `-h, --help` | Show help message | No | - |
 
 ## Input Requirements
 
-### Directory Structure
+### FASTQ Files
+- Must be paired-end sequencing data (R1 and R2 files)
+- Files should be in `.fastq.gz` format
+- Number of files must be even (paired R1/R2 files)
+
+### Plasmid Reference
+- Must be in FASTA format
+- Should be the circular plasmid reference sequence
+- Will be automatically normalized to uppercase
+
+## Output Structure
+
 ```
-NuCSI/
+output_dir/
 ├── inputs/
-│   ├── raw_fastqgzs/          # Raw FASTQ files
-│   ├── qc_reads/              # Quality-controlled reads (auto-generated)
-│   └── plasmid/               # Reference plasmid FASTA files (user-provided)
-├── results/                   # Analysis results (auto-generated)
-└── scripts/                   # Analysis scripts
+│   ├── raw_fastqgzs/          # Copied input FASTQ files
+│   ├── qc_reads/              # Quality-controlled reads
+│   └── plasmid/               # Plasmid reference files
+├── results/
+│   ├── plasmid_mapping_*/     # Results for each plasmid
+│   │   ├── coverage_analysis.png
+│   │   ├── coverage_data.txt
+│   │   ├── comprehensive_summary_plot.png
+│   │   └── comprehensive_position_analysis.txt
+│   └── consensus/             # Sequence consensus results
+├── scripts/                   # Analysis scripts
+├── configs.yaml              # Configuration file
+└── Makefile                  # Pipeline makefile
 ```
 
-### File Naming Conventions
+## Key Output Files
 
-- **Raw FASTQ files**: `{sample}_R1_001.fastq.gz` and `{sample}_R2_001.fastq.gz`
-- **Plasmid references**: Any `.fasta` file in `inputs/plasmid/` (you must provide your own reference sequences)
-
-### Required Setup
-
-1. **Place your raw FASTQ files** in `inputs/raw_fastqgzs/`
-2. **Add your plasmid reference** in `inputs/plasmid/` (e.g., `my_plasmid.fasta`)
-3. **Configure parameters** in `configs.yaml` if needed
-
-## Output Files
-
-### Quality Control
-- Quality-controlled FASTQ files in `inputs/qc_reads/`
-- Fastp reports in `results/logs/`
-
-### Sequence Scanning
-- Consensus sequences and alignments in `results/consensus/`
-- Logo plots showing sequence conservation
-
-### Plasmid Mapping
-- BAM files and alignment statistics in `results/plasmid_mapping/`
-- Position analysis plots and tables
-- Zoom plots for top hit regions (20 bases on either side)
-- Comprehensive summary analysis
-
-## Key Outputs
+### Coverage Analysis
+- `coverage_analysis.png`: Coverage plots for entire plasmid and zoomed regions
+- `coverage_data.txt`: Detailed coverage statistics and base information
 
 ### Position Analysis
-- **Top Start Position**: Position 255 (366 alignments, 27.6%)
-- **Top End Position**: Position 251 (396 alignments, 29.9%)
-- **Statistical Significance**: Bonferroni and Benjamini-Hochberg corrected p-values
-- **Zoom Plots**: Single-base resolution visualization of top hit regions
+- `comprehensive_summary_plot.png`: Statistical analysis plots
+- `comprehensive_position_analysis.txt`: Detailed position statistics
 
 ### Sequence Analysis
-- Extracted sequences between specified motifs
-- Multiple sequence alignments
-- Consensus logos and conservation plots
+- `consensus/`: Multiple sequence alignment and logo plots
 
-## Statistical Analysis
+## Pipeline Steps
 
-The pipeline includes comprehensive statistical analysis:
+1. **Quality Control**: Fastp processing with specified quality cutoff
+2. **Sequence Scanning**: Identify sequences between specified motifs
+3. **Plasmid Mapping**: Map reads to plasmid reference
+4. **Coverage Analysis**: Calculate and visualize coverage
+5. **Position Analysis**: Statistical analysis of mapping positions
 
-- **Chi-square tests** against uniform distribution
-- **Multiple testing correction** (Bonferroni and Benjamini-Hochberg)
-- **Single-base resolution** position analysis
-- **Significance thresholds** with FDR control
+## Examples
+
+### Single Sample Analysis
+```bash
+nucsi.py -f sample_R1.fastq.gz sample_R2.fastq.gz \
+         -p plasmid.fasta \
+         -o results/ \
+         -q 30 \
+         --run-pipeline
+```
+
+### Multiple Sample Analysis
+```bash
+nucsi.py -f sample1_R1.fastq.gz sample1_R2.fastq.gz \
+         sample2_R1.fastq.gz sample2_R2.fastq.gz \
+         -p plasmid.fasta \
+         -o results/ \
+         -q 25 \
+         --run-pipeline
+```
+
+### Setup Only (Manual Execution)
+```bash
+nucsi.py -f sample_R1.fastq.gz sample_R2.fastq.gz \
+         -p plasmid.fasta \
+         -o results/ \
+         -q 30
+
+cd results/
+make all
+```
+
+## Dependencies
+
+### Required Tools
+- `fastp`: Quality control
+- `bwa`: Read mapping
+- `samtools`: BAM file processing
+- `mafft`: Multiple sequence alignment
+
+### Python Packages
+- `pandas`, `numpy`, `scipy`
+- `matplotlib`, `seaborn`
+- `biopython`, `pysam`
+- `tqdm`, `pyyaml`
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Missing dependencies**: Ensure conda environment is activated
-2. **File permissions**: Make sure setup.sh is executable
-3. **Memory issues**: Large files may require increased memory allocation
+1. **FASTQ files not found**: Ensure files exist and paths are correct
+2. **Plasmid reference not found**: Check file path and format
+3. **Pipeline fails**: Check dependencies are installed (fastp, bwa, samtools)
+4. **Memory issues**: Reduce quality cutoff or use smaller datasets
 
-### Logs
+### Getting Help
 
-All analysis steps generate detailed logs in `results/logs/` with timestamps.
+1. Check the troubleshooting section
+2. Review the GitHub issues
+3. Create a new issue with detailed information
 
 ## Citation
 
 If you use NuCSI in your research, please cite:
 
 ```
-NuCSI: Nuclease Cleavage Site Identification Pipeline
-[Your citation information here]
+NuCSI: Nuclease Cleavage Site Identification Tool
+https://github.com/Matt115A/NuCSI
 ```
 
 ## License
 
-[Add your license information here]
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Contributing
 
-[Add contribution guidelines here]
+Contributions are welcome! Please feel free to submit a Pull Request.
 

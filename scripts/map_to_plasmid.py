@@ -651,33 +651,13 @@ def main():
     results_base, log_base = load_config(args.config)
     log_dir = setup_logging(log_base)
     
-    # Create output directory
-    output_dir = os.path.join(results_base, "plasmid_mapping")
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Find plasmid reference
+    # Find plasmid references
     plasmid_dir = "inputs/plasmid"
     plasmid_files = [f for f in os.listdir(plasmid_dir) if f.endswith('.fasta')]
     
     if not plasmid_files:
         logging.error("No plasmid reference found in inputs/plasmid/")
         return
-    
-    plasmid_fasta = os.path.join(plasmid_dir, plasmid_files[0])
-    logging.info(f"Using plasmid reference: {plasmid_fasta}")
-    
-    # Normalize plasmid sequence to uppercase for case-insensitive handling
-    normalized_plasmid = normalize_sequence_case(plasmid_fasta, output_dir)
-    
-    # Get plasmid length from normalized sequence
-    with open(normalized_plasmid) as fh:
-        plasmid_seq = str(next(SeqIO.parse(fh, 'fasta')).seq)
-        plasmid_length = len(plasmid_seq)
-    
-    logging.info(f"Plasmid length: {plasmid_length} bp")
-    
-    # Create BWA index using normalized sequence
-    index_prefix = create_bwa_index(normalized_plasmid, output_dir)
     
     # Find FASTQ files
     qc_dir = "inputs/qc_reads"
@@ -687,40 +667,217 @@ def main():
         logging.error("No FASTQ files found in inputs/qc_reads/")
         return
     
-    # Process each FASTQ file
-    all_mapping_data = []
+    # Process each plasmid separately
+    for plasmid_file in plasmid_files:
+        plasmid_name = os.path.splitext(plasmid_file)[0]  # Remove .fasta extension
+        logging.info(f"Processing plasmid: {plasmid_name}")
+        
+        # Create plasmid-specific output directory
+        plasmid_output_dir = os.path.join(results_base, f"plasmid_mapping_{plasmid_name}")
+        os.makedirs(plasmid_output_dir, exist_ok=True)
+        
+        plasmid_fasta = os.path.join(plasmid_dir, plasmid_file)
+        logging.info(f"Using plasmid reference: {plasmid_fasta}")
+        
+        # Normalize plasmid sequence to uppercase for case-insensitive handling
+        normalized_plasmid = normalize_sequence_case(plasmid_fasta, plasmid_output_dir)
+        
+        # Get plasmid length from normalized sequence
+        with open(normalized_plasmid) as fh:
+            plasmid_seq = str(next(SeqIO.parse(fh, 'fasta')).seq)
+            plasmid_length = len(plasmid_seq)
+        
+        logging.info(f"Plasmid length: {plasmid_length} bp")
+        
+        # Create BWA index using normalized sequence
+        index_prefix = create_bwa_index(normalized_plasmid, plasmid_output_dir)
+        
+        # Process each FASTQ file for this plasmid
+        all_mapping_data = []
+        
+        for fastq_file in tqdm(fastq_files, desc=f"Processing FASTQ files for {plasmid_name}"):
+            sample_name = os.path.splitext(os.path.splitext(fastq_file)[0])[0]  # Remove .fastq.gz
+            fastq_path = os.path.join(qc_dir, fastq_file)
+            
+            logging.info(f"Processing {sample_name} for plasmid {plasmid_name}")
+            
+            # Run BWA mapping
+            bam_file = run_bwa_mapping(fastq_path, index_prefix, plasmid_output_dir, sample_name)
+            
+            # Filter alignments
+            alignments = filter_alignments(bam_file, args.min_quality, args.min_length)
+            
+            if not alignments:
+                logging.warning(f"No high-quality alignments for {sample_name} on plasmid {plasmid_name}")
+                continue
+            
+            # Extract mapping positions
+            mapping_data = extract_mapping_positions(alignments, plasmid_length)
+            all_mapping_data.extend(mapping_data)
+            
+            # Create mapping plots
+            df = create_mapping_plots(mapping_data, plasmid_length, plasmid_output_dir, sample_name)
+            
+            # Create position analysis
+            start_significance, end_significance = create_position_analysis(df, plasmid_length, plasmid_output_dir, sample_name)
+            
+            # Create detailed zoom plots for top hits
+            create_zoom_plots(df, plasmid_length, plasmid_output_dir, sample_name, start_significance, end_significance)
+            
+            # Save mapping statistics
+            stats_path = os.path.join(plasmid_output_dir, f"{sample_name}_mapping_stats.txt")
+            with open(stats_path, 'w') as fh:
+                fh.write(f"Mapping Statistics for {sample_name} on {plasmid_name}\n")
+                fh.write("=" * 50 + "\n")
+                fh.write(f"Total alignments: {len(mapping_data)}\n")
+                fh.write(f"Average alignment length: {df['length'].mean():.2f} bp\n")
+                fh.write(f"Average mapping quality: {df['mapping_quality'].mean():.2f}\n")
+                fh.write(f"Plasmid length: {plasmid_length} bp\n")
+            
+            logging.info(f"Mapping statistics saved: {stats_path}")
+        
+        # Create comprehensive summary analysis for this plasmid
+        if all_mapping_data:
+            summary_df = pd.DataFrame(all_mapping_data)
+            create_comprehensive_summary(summary_df, plasmid_length, plasmid_output_dir)
+        
+        logging.info(f"Completed analysis for plasmid {plasmid_name}")
     
-    for fastq_file in tqdm(fastq_files, desc="Processing FASTQ files"):
-        sample_name = os.path.splitext(os.path.splitext(fastq_file)[0])[0]  # Remove .fastq.gz
-        fastq_path = os.path.join(qc_dir, fastq_file)
-        
-        logging.info(f"Processing {sample_name}")
-        
-        # Run BWA mapping
-        bam_file = run_bwa_mapping(fastq_path, index_prefix, output_dir, sample_name)
-        
-        # Filter alignments
-        alignments = filter_alignments(bam_file, args.min_quality, args.min_length)
-        
-        if not alignments:
-            logging.warning(f"No high-quality alignments for {sample_name}")
-            continue
-        
-        # Extract mapping positions
-        mapping_data = extract_mapping_positions(alignments, plasmid_length)
-        all_mapping_data.extend(mapping_data)
-        
-        # Create mapping plots
-        df = create_mapping_plots(mapping_data, plasmid_length, output_dir, sample_name)
-        
+    logging.info("Plasmid mapping analysis completed successfully for all plasmids!")
 
+def create_coverage_analysis(summary_df, plasmid_length, output_dir):
+    """Create coverage analysis plots for the entire construct and zoomed around the sharpest drop-off."""
     
-    # Create comprehensive summary analysis
-    if all_mapping_data:
-        summary_df = pd.DataFrame(all_mapping_data)
-        create_comprehensive_summary(summary_df, plasmid_length, output_dir)
+    # Load plasmid sequence for base display
+    plasmid_fasta = os.path.join(output_dir, "plasmid_normalized.fasta")
+    with open(plasmid_fasta, 'r') as fh:
+        plasmid_seq = str(next(SeqIO.parse(fh, 'fasta')).seq)
     
-    logging.info("Plasmid mapping analysis completed successfully!")
+    # Create coverage array for the entire plasmid
+    coverage = np.zeros(plasmid_length)
+    
+    # Calculate coverage for each position
+    for _, row in summary_df.iterrows():
+        start_pos = row['start']
+        end_pos = row['end']
+        
+        # Handle circular plasmid wrapping
+        if end_pos > start_pos:
+            # Normal case: start < end
+            coverage[start_pos:end_pos] += 1
+        else:
+            # Wrapped case: end < start (circular)
+            coverage[start_pos:] += 1
+            coverage[:end_pos] += 1
+    
+    # Find the sharpest drop-off in coverage
+    coverage_diff = np.diff(coverage)
+    sharpest_drop_pos = np.argmin(coverage_diff)  # Position with largest negative change
+    drop_magnitude = abs(coverage_diff[sharpest_drop_pos])
+    
+    # Create coverage plots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 12))
+    
+    # Plot 1: Full construct coverage
+    ax1.plot(range(plasmid_length), coverage, 'b-', linewidth=1, alpha=0.8)
+    ax1.set_xlabel('Position (bp)')
+    ax1.set_ylabel('Coverage')
+    ax1.set_title('Coverage Across Entire Plasmid Construct')
+    ax1.grid(True, alpha=0.3)
+    
+    # Add statistics to the plot
+    mean_coverage = np.mean(coverage)
+    max_coverage = np.max(coverage)
+    ax1.axhline(y=mean_coverage, color='red', linestyle='--', alpha=0.7, 
+                label=f'Mean Coverage: {mean_coverage:.1f}')
+    ax1.legend()
+    
+    # Plot 2: Zoomed coverage around the sharpest drop-off (exactly 5 bp on either side)
+    zoom_center = sharpest_drop_pos
+    zoom_start = max(0, zoom_center - 5)
+    zoom_end = min(plasmid_length, zoom_center + 6)
+    
+    zoom_positions = range(zoom_start, zoom_end)
+    zoom_coverage = coverage[zoom_start:zoom_end]
+    
+    ax2.plot(zoom_positions, zoom_coverage, 'b-', linewidth=2, alpha=0.8, marker='o', markersize=4)
+    ax2.set_xlabel('Position and Base')
+    ax2.set_ylabel('Coverage')
+    ax2.set_title(f'Coverage Zoom: Sharpest Drop-off at Position {zoom_center}\n'
+                  f'Positions {zoom_start}-{zoom_end-1} (Drop magnitude: {drop_magnitude:.0f})')
+    ax2.grid(True, alpha=0.3)
+    
+    # Highlight the drop-off position
+    ax2.axvline(x=zoom_center, color='red', linestyle='--', alpha=0.7, 
+                label=f'Sharpest Drop: Position {zoom_center}')
+    ax2.legend()
+    
+    # Add base labels on x-axis for zoomed plot
+    ax2.set_xticks(zoom_positions)
+    base_labels = []
+    for pos in zoom_positions:
+        if 0 <= pos < len(plasmid_seq):
+            base = plasmid_seq[pos]
+        else:
+            base = 'N'
+        base_labels.append(f"{pos}\n{base}")
+    ax2.set_xticklabels(base_labels, rotation=45, ha='right', fontsize=10)
+    
+    # Add coverage statistics for the zoomed region
+    zoom_mean = np.mean(zoom_coverage)
+    zoom_max = np.max(zoom_coverage)
+    zoom_min = np.min(zoom_coverage)
+    ax2.text(0.02, 0.98, f'Mean Coverage: {zoom_mean:.1f}\nMax Coverage: {zoom_max:.0f}\nMin Coverage: {zoom_min:.0f}', 
+             transform=ax2.transAxes, verticalalignment='top',
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    
+    plt.tight_layout()
+    
+    # Save the coverage plot
+    coverage_plot_path = os.path.join(output_dir, "coverage_analysis.png")
+    plt.savefig(coverage_plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    logging.info(f"Coverage analysis plot saved: {coverage_plot_path}")
+    
+    # Save coverage data
+    coverage_data_path = os.path.join(output_dir, "coverage_data.txt")
+    with open(coverage_data_path, 'w') as fh:
+        fh.write("Coverage Analysis\n")
+        fh.write("=" * 50 + "\n")
+        fh.write(f"Plasmid length: {plasmid_length} bp\n")
+        fh.write(f"Total alignments: {len(summary_df)}\n")
+        fh.write(f"Mean coverage: {mean_coverage:.2f}\n")
+        fh.write(f"Max coverage: {max_coverage:.0f}\n")
+        fh.write(f"Min coverage: {np.min(coverage):.0f}\n")
+        fh.write(f"Standard deviation: {np.std(coverage):.2f}\n\n")
+        
+        fh.write(f"Sharpest Drop-off Analysis:\n")
+        fh.write("-" * 30 + "\n")
+        fh.write(f"Sharpest drop position: {zoom_center}\n")
+        fh.write(f"Drop magnitude: {drop_magnitude:.0f}\n")
+        fh.write(f"Coverage at drop position: {coverage[zoom_center]:.0f}\n")
+        fh.write(f"Coverage before drop: {coverage[max(0, zoom_center-1)]:.0f}\n")
+        fh.write(f"Coverage after drop: {coverage[min(plasmid_length-1, zoom_center+1)]:.0f}\n")
+        fh.write(f"Base at drop position: {plasmid_seq[zoom_center] if zoom_center < len(plasmid_seq) else 'N'}\n\n")
+        
+        fh.write(f"Zoomed Region (positions {zoom_start}-{zoom_end-1}):\n")
+        fh.write("-" * 40 + "\n")
+        fh.write(f"Mean coverage: {zoom_mean:.2f}\n")
+        fh.write(f"Max coverage: {zoom_max:.0f}\n")
+        fh.write(f"Min coverage: {zoom_min:.0f}\n")
+        fh.write(f"Standard deviation: {np.std(zoom_coverage):.2f}\n\n")
+        
+        fh.write("Position\tBase\tCoverage\n")
+        fh.write("-" * 25 + "\n")
+        for pos in zoom_positions:
+            base = plasmid_seq[pos] if 0 <= pos < len(plasmid_seq) else 'N'
+            fh.write(f"{pos}\t{base}\t{coverage[pos]:.0f}\n")
+    
+    logging.info(f"Coverage data saved: {coverage_data_path}")
+    
+    return coverage
+
 
 def create_comprehensive_summary(summary_df, plasmid_length, output_dir):
     """Create comprehensive summary analysis across all samples with multiple testing correction."""
@@ -976,6 +1133,10 @@ def create_comprehensive_summary(summary_df, plasmid_length, output_dir):
         fh.write(f"Total unique end positions: {len(end_significance)}\n")
     
     logging.info(f"Comprehensive analysis saved: {summary_analysis_path}")
+    
+    # Create coverage analysis (merged paired-end data)
+    logging.info("Creating coverage analysis with merged paired-end data...")
+    create_coverage_analysis(summary_df, plasmid_length, output_dir)
     
     logging.info("Plasmid mapping analysis completed successfully!")
 
