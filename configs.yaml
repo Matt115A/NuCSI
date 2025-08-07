@@ -1,0 +1,17 @@
+# NuCSI Configuration File
+# ========================
+
+# Input/Output Directories
+input_dir_raw: inputs/raw_fastqgzs
+output_dir_qc_reads: inputs/qc_reads
+results_base: results
+
+# Quality Control Parameters
+quality_threshold: 30
+
+# Sequence Scanning Parameters
+upstream: ccagcttcaaaa
+downstream: gcgctctgaagtt
+
+# Plasmid Mapping Parameters
+# (These are automatically detected from inputs/plasmid/)

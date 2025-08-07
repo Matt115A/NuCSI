@@ -1,0 +1,94 @@
+# NuCSI Project Gitignore
+# =======================
+
+# Input/Output directories (auto-generated)
+inputs/paired/
+inputs/qc_reads/
+inputs/raw_fastqgzs/
+results/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Conda
+.conda/
+conda-meta/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+*.tmp
+*.temp
+
+# Data files (protect sensitive data)
+*.bam
+*.bai
+*.sam
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+
+# Results and analysis files (protect analysis results)
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.svg
+*.csv
+*.tsv
+
+# Allow specific files
+!requirements.txt
+!README.md
+!configs.yaml
+!Makefile
+!setup.sh
+!scripts/*.py
+!inputs/plasmid/*.fasta
