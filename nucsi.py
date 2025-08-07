@@ -34,8 +34,7 @@ def copy_scripts(scripts_dir):
     # Copy required scripts
     scripts_to_copy = [
         'scripts/map_to_plasmid.py',
-        'scripts/fastp.py',
-        'scripts/scan_sequences.py'
+        'scripts/fastp.py'
     ]
     
     print("Copying analysis scripts...")
@@ -59,10 +58,6 @@ results_base: results
 
 # Quality Control Parameters
 quality_threshold: {quality_cutoff}
-
-# Sequence Scanning Parameters
-upstream: ccagcttcaaaa
-downstream: gcgctctgaagtt
 
 # Plasmid Mapping Parameters
 # (These are automatically detected from inputs/plasmid/)
