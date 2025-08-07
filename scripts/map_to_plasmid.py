@@ -876,6 +876,29 @@ def create_coverage_analysis(summary_df, plasmid_length, output_dir):
     
     logging.info(f"Coverage data saved: {coverage_data_path}")
     
+    # Save coverage data as CSV for user replication
+    import pandas as pd
+    coverage_df = pd.DataFrame({
+        'position': range(plasmid_length),
+        'base': [plasmid_seq[i] if i < len(plasmid_seq) else 'N' for i in range(plasmid_length)],
+        'coverage': coverage
+    })
+    
+    coverage_csv_path = os.path.join(output_dir, "coverage_data.csv")
+    coverage_df.to_csv(coverage_csv_path, index=False)
+    logging.info(f"Coverage CSV saved: {coverage_csv_path}")
+    
+    # Save zoomed region data as CSV
+    zoom_df = pd.DataFrame({
+        'position': list(zoom_positions),
+        'base': [plasmid_seq[pos] if 0 <= pos < len(plasmid_seq) else 'N' for pos in zoom_positions],
+        'coverage': list(zoom_coverage)
+    })
+    
+    zoom_csv_path = os.path.join(output_dir, "coverage_zoomed_data.csv")
+    zoom_df.to_csv(zoom_csv_path, index=False)
+    logging.info(f"Zoomed coverage CSV saved: {zoom_csv_path}")
+    
     return coverage
 
 

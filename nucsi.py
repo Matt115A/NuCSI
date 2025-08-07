@@ -79,15 +79,12 @@ def create_makefile(output_dir):
     makefile_content = """# NuCSI Pipeline Makefile
 # ======================
 
-.PHONY: all clean qc_reads scan_sequences map_plasmid
+.PHONY: all clean qc_reads map_plasmid
 
-all: qc_reads scan_sequences map_plasmid
+all: qc_reads map_plasmid
 
 qc_reads:
 	python scripts/fastp.py -c configs.yaml
-
-scan_sequences:
-	python scripts/scan_sequences.py -c configs.yaml
 
 map_plasmid:
 	python scripts/map_to_plasmid.py -c configs.yaml

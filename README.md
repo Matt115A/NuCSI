@@ -4,15 +4,16 @@ A command-line interface for identifying nuclease cleavage sites from paired-end
 
 ## Overview
 
-NuCSI is a bioinformatics pipeline that processes paired-end sequencing data to identify nuclease cleavage sites on plasmid references. The tool performs quality control, sequence scanning, plasmid mapping, and coverage analysis to provide comprehensive insights into nuclease activity.
+NuCSI is a bioinformatics pipeline that processes paired-end sequencing data to identify nuclease cleavage sites on plasmid references. The tool performs quality control, plasmid mapping, and comprehensive coverage analysis to provide statistical insights into nuclease activity with single base-pair resolution.
 
 ## Features
 
 - **Quality Control**: Fastp-based quality filtering with configurable thresholds
-- **Sequence Scanning**: Automatic detection of sequences between specified motifs
 - **Plasmid Mapping**: BWA-based mapping to circular plasmid references
 - **Coverage Analysis**: Automatic detection of coverage drop-offs and zoomed analysis
-- **Statistical Analysis**: Multiple hypothesis testing correction and position analysis
+- **Statistical Analysis**: Multiple hypothesis testing correction (Bonferroni and Benjamini-Hochberg)
+- **Position Analysis**: Single base-pair resolution analysis of mapping start/end positions
+- **Data Reproducibility**: CSV exports for all coverage and position data
 - **Visualization**: Comprehensive plots and coverage analysis
 
 ## Quick Start
@@ -80,12 +81,13 @@ output_dir/
 │   ├── qc_reads/              # Quality-controlled reads
 │   └── plasmid/               # Plasmid reference files
 ├── results/
-│   ├── plasmid_mapping_*/     # Results for each plasmid
-│   │   ├── coverage_analysis.png
-│   │   ├── coverage_data.txt
-│   │   ├── comprehensive_summary_plot.png
-│   │   └── comprehensive_position_analysis.txt
-│   └── consensus/             # Sequence consensus results
+│   └── plasmid_mapping_*/     # Results for each plasmid
+│       ├── coverage_analysis.png
+│       ├── coverage_data.csv          # Full coverage data (reproducible)
+│       ├── coverage_zoomed_data.csv   # Zoomed region data (reproducible)
+│       ├── coverage_data.txt
+│       ├── comprehensive_summary_plot.png
+│       └── comprehensive_position_analysis.txt
 ├── scripts/                   # Analysis scripts
 ├── configs.yaml              # Configuration file
 └── Makefile                  # Pipeline makefile
@@ -95,22 +97,27 @@ output_dir/
 
 ### Coverage Analysis
 - `coverage_analysis.png`: Coverage plots for entire plasmid and zoomed regions
+- `coverage_data.csv`: Full coverage data for all positions (reproducible)
+- `coverage_zoomed_data.csv`: Zoomed region data around sharpest drop-off (reproducible)
 - `coverage_data.txt`: Detailed coverage statistics and base information
 
 ### Position Analysis
 - `comprehensive_summary_plot.png`: Statistical analysis plots
-- `comprehensive_position_analysis.txt`: Detailed position statistics
+- `comprehensive_position_analysis.txt`: Detailed position statistics with multiple testing correction
 
-### Sequence Analysis
-- `consensus/`: Multiple sequence alignment and logo plots
+### Data Reproducibility
+All coverage and position data are exported as CSV files, allowing users to:
+- Recreate plots using their preferred visualization tools
+- Perform additional statistical analyses
+- Integrate data into other pipelines
+- Share reproducible datasets
 
 ## Pipeline Steps
 
 1. **Quality Control**: Fastp processing with specified quality cutoff
-2. **Sequence Scanning**: Identify sequences between specified motifs
-3. **Plasmid Mapping**: Map reads to plasmid reference
-4. **Coverage Analysis**: Calculate and visualize coverage
-5. **Position Analysis**: Statistical analysis of mapping positions
+2. **Plasmid Mapping**: Map reads to plasmid reference using BWA
+3. **Coverage Analysis**: Calculate and visualize coverage with automatic drop-off detection
+4. **Position Analysis**: Statistical analysis of mapping positions with multiple testing correction
 
 ## Examples
 
@@ -144,13 +151,55 @@ cd results/
 make all
 ```
 
+## Accessibility and Distribution
+
+### Current Availability
+- **GitHub Repository**: Available at https://github.com/Matt115A/NuCSI
+- **Installation**: Manual installation via git clone and conda/pip
+- **Documentation**: Comprehensive README and inline code documentation
+
+### Enhanced Accessibility Options
+
+#### 1. **Conda Package Distribution**
+```bash
+# Future: Install via conda
+conda install -c bioconda nucsi
+```
+
+#### 2. **PyPI Package Distribution**
+```bash
+# Future: Install via pip
+pip install nucsi
+```
+
+#### 3. **Docker Container**
+```dockerfile
+# Future: Dockerfile for containerized execution
+FROM continuumio/miniconda3
+RUN conda install -c bioconda fastp bwa samtools
+RUN pip install pandas numpy scipy matplotlib seaborn biopython pysam tqdm pyyaml
+COPY nucsi.py /usr/local/bin/
+RUN chmod +x /usr/local/bin/nucsi.py
+ENTRYPOINT ["nucsi.py"]
+```
+
+#### 4. **Galaxy Tool Integration**
+- Integration with Galaxy workflow system
+- Web-based interface for non-command-line users
+- Workflow sharing and reproducibility
+
+#### 5. **Web Application**
+- Flask/FastAPI-based web interface
+- File upload and processing
+- Real-time progress tracking
+- Result visualization
+
 ## Dependencies
 
 ### Required Tools
 - `fastp`: Quality control
 - `bwa`: Read mapping
 - `samtools`: BAM file processing
-- `mafft`: Multiple sequence alignment
 
 ### Python Packages
 - `pandas`, `numpy`, `scipy`
