@@ -166,13 +166,19 @@ def filter_alignments(bam_file, min_quality=30, min_length=50):
     return filtered_alignments
 
 def extract_mapping_positions(alignments, plasmid_length):
-    """Extract mapping start and end positions from alignments."""
+    """Extract mapping start and end positions from alignments.
+    
+    Note: This function uses 0-based indexing for all positions:
+    - reference_start: 0-based, inclusive (first aligned base)
+    - reference_end: 0-based, exclusive (position after last aligned base)
+    - This is consistent with pysam and BWA conventions
+    """
     mapping_data = []
     
     for read in alignments:
-        # Get mapping positions
-        start_pos = read.reference_start
-        end_pos = read.reference_end
+        # Get mapping positions (0-based indexing)
+        start_pos = read.reference_start  # 0-based, inclusive
+        end_pos = read.reference_end      # 0-based, exclusive
         
         # Handle circular plasmid wrapping
         if end_pos > plasmid_length:
@@ -746,20 +752,26 @@ def main():
     logging.info("Plasmid mapping analysis completed successfully for all plasmids!")
 
 def create_coverage_analysis(summary_df, plasmid_length, output_dir):
-    """Create coverage analysis plots for the entire construct and zoomed around the sharpest drop-off."""
+    """Create coverage analysis plots for the entire construct and zoomed around the sharpest drop-off.
+    
+    Note: This function uses 0-based indexing for all positions, which is consistent with:
+    - BWA alignment positions (reference_start and reference_end are 0-based)
+    - pysam indexing (reference_end is exclusive)
+    - Python array indexing
+    """
     
     # Load plasmid sequence for base display
     plasmid_fasta = os.path.join(output_dir, "plasmid_normalized.fasta")
     with open(plasmid_fasta, 'r') as fh:
         plasmid_seq = str(next(SeqIO.parse(fh, 'fasta')).seq)
     
-    # Create coverage array for the entire plasmid
+    # Create coverage array for the entire plasmid (0-based indexing)
     coverage = np.zeros(plasmid_length)
     
     # Calculate coverage for each position
     for _, row in summary_df.iterrows():
-        start_pos = row['start']
-        end_pos = row['end']
+        start_pos = row['start']  # 0-based, inclusive
+        end_pos = row['end']      # 0-based, exclusive
         
         # Handle circular plasmid wrapping
         if end_pos > start_pos:
@@ -780,7 +792,7 @@ def create_coverage_analysis(summary_df, plasmid_length, output_dir):
     
     # Plot 1: Full construct coverage
     ax1.plot(range(plasmid_length), coverage, 'b-', linewidth=1, alpha=0.8)
-    ax1.set_xlabel('Position (bp)')
+    ax1.set_xlabel('Position (bp, 0-based)')
     ax1.set_ylabel('Coverage')
     ax1.set_title('Coverage Across Entire Plasmid Construct')
     ax1.grid(True, alpha=0.3)
@@ -801,7 +813,7 @@ def create_coverage_analysis(summary_df, plasmid_length, output_dir):
     zoom_coverage = coverage[zoom_start:zoom_end]
     
     ax2.plot(zoom_positions, zoom_coverage, 'b-', linewidth=2, alpha=0.8, marker='o', markersize=4)
-    ax2.set_xlabel('Position and Base')
+    ax2.set_xlabel('Position (bp, 0-based) and Base')
     ax2.set_ylabel('Coverage')
     ax2.set_title(f'Coverage Zoom: Sharpest Drop-off at Position {zoom_center}\n'
                   f'Positions {zoom_start}-{zoom_end-1} (Drop magnitude: {drop_magnitude:.0f})')
@@ -812,12 +824,12 @@ def create_coverage_analysis(summary_df, plasmid_length, output_dir):
                 label=f'Sharpest Drop: Position {zoom_center}')
     ax2.legend()
     
-    # Add base labels on x-axis for zoomed plot
+    # Add base labels on x-axis for zoomed plot (0-based indexing)
     ax2.set_xticks(zoom_positions)
     base_labels = []
     for pos in zoom_positions:
         if 0 <= pos < len(plasmid_seq):
-            base = plasmid_seq[pos]
+            base = plasmid_seq[pos]  # 0-based indexing
         else:
             base = 'N'
         base_labels.append(f"{pos}\n{base}")
@@ -854,14 +866,14 @@ def create_coverage_analysis(summary_df, plasmid_length, output_dir):
         
         fh.write(f"Sharpest Drop-off Analysis:\n")
         fh.write("-" * 30 + "\n")
-        fh.write(f"Sharpest drop position: {zoom_center}\n")
+        fh.write(f"Sharpest drop position: {zoom_center} (0-based)\n")
         fh.write(f"Drop magnitude: {drop_magnitude:.0f}\n")
         fh.write(f"Coverage at drop position: {coverage[zoom_center]:.0f}\n")
         fh.write(f"Coverage before drop: {coverage[max(0, zoom_center-1)]:.0f}\n")
         fh.write(f"Coverage after drop: {coverage[min(plasmid_length-1, zoom_center+1)]:.0f}\n")
         fh.write(f"Base at drop position: {plasmid_seq[zoom_center] if zoom_center < len(plasmid_seq) else 'N'}\n\n")
         
-        fh.write(f"Zoomed Region (positions {zoom_start}-{zoom_end-1}):\n")
+        fh.write(f"Zoomed Region (positions {zoom_start}-{zoom_end-1}, 0-based):\n")
         fh.write("-" * 40 + "\n")
         fh.write(f"Mean coverage: {zoom_mean:.2f}\n")
         fh.write(f"Max coverage: {zoom_max:.0f}\n")
