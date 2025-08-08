@@ -1,10 +1,16 @@
 # NuCSI: Nuclease Cleavage Site Identification Tool
 
-A command-line interface for identifying nuclease cleavage sites from paired-end sequencing data.
+A command-line interface for identifying nuclease cleavage sites from paired-end sequencing data with single base-pair resolution.
 
 ## Overview
 
 NuCSI is a bioinformatics pipeline that processes paired-end sequencing data to identify nuclease cleavage sites on plasmid references. The tool performs quality control, plasmid mapping, and comprehensive coverage analysis to provide statistical insights into nuclease activity with single base-pair resolution.
+
+The pipeline is specifically designed for analyzing nuclease cleavage experiments where:
+- DNA is cleaved by a nuclease at specific sites
+- The cleaved DNA is sequenced using paired-end sequencing
+- Coverage analysis reveals cleavage sites as positions with reduced read coverage
+- Statistical analysis identifies significant cleavage patterns
 
 ## Features
 
@@ -15,6 +21,7 @@ NuCSI is a bioinformatics pipeline that processes paired-end sequencing data to 
 - **Position Analysis**: Single base-pair resolution analysis of mapping start/end positions
 - **Data Reproducibility**: CSV exports for all coverage and position data
 - **Visualization**: Comprehensive plots and coverage analysis
+- **Circular Plasmid Support**: Handles circular plasmid references with proper wrapping
 
 ## Quick Start
 
@@ -66,11 +73,13 @@ nucsi.py -f sample1_R1.fastq.gz sample1_R2.fastq.gz sample2_R1.fastq.gz sample2_
 - Must be paired-end sequencing data (R1 and R2 files)
 - Files should be in `.fastq.gz` format
 - Number of files must be even (paired R1/R2 files)
+- Should contain sequencing data from nuclease-treated samples
 
 ### Plasmid Reference
 - Must be in FASTA format
 - Should be the circular plasmid reference sequence
 - Will be automatically normalized to uppercase
+- Should be the same plasmid used in the nuclease experiment
 
 ## Output Structure
 
@@ -96,14 +105,14 @@ output_dir/
 ## Key Output Files
 
 ### Coverage Analysis
-- `coverage_analysis.png`: Coverage plots for entire plasmid and zoomed regions
+- `coverage_analysis.png`: Coverage plots for entire plasmid and zoomed regions around cleavage sites
 - `coverage_data.csv`: Full coverage data for all positions (reproducible)
 - `coverage_zoomed_data.csv`: Zoomed region data around sharpest drop-off (reproducible)
 - `coverage_data.txt`: Detailed coverage statistics and base information
 
 ### Position Analysis
-- `comprehensive_summary_plot.png`: Statistical analysis plots
-- `comprehensive_position_analysis.txt`: Detailed position statistics with multiple testing correction
+- `comprehensive_summary_plot.png`: Statistical analysis plots with multiple testing correction
+- `comprehensive_position_analysis.txt`: Detailed position statistics with Bonferroni and Benjamini-Hochberg corrections
 
 ### Data Reproducibility
 All coverage and position data are exported as CSV files, allowing users to:
@@ -114,10 +123,24 @@ All coverage and position data are exported as CSV files, allowing users to:
 
 ## Pipeline Steps
 
-1. **Quality Control**: Fastp processing with specified quality cutoff
-2. **Plasmid Mapping**: Map reads to plasmid reference using BWA
+1. **Quality Control**: Fastp processing with specified quality cutoff (default: Q30)
+2. **Plasmid Mapping**: Map reads to plasmid reference using BWA with circular plasmid support
 3. **Coverage Analysis**: Calculate and visualize coverage with automatic drop-off detection
 4. **Position Analysis**: Statistical analysis of mapping positions with multiple testing correction
+5. **Cleavage Site Detection**: Identify positions with lowest coverage as potential cleavage sites
+
+## Biological Interpretation
+
+### Coverage Patterns
+- **High coverage regions**: Intact DNA with many reads mapping
+- **Low coverage regions**: Potential cleavage sites with reduced read mapping
+- **Sharp coverage drops**: Indicate nuclease cleavage activity
+
+### Cleavage Site Identification
+- **Primary method**: Position with lowest coverage
+- **Secondary method**: Position with sharpest coverage drop
+- **Statistical significance**: Multiple testing correction applied
+- **Base context**: Sequence context provided for each cleavage site
 
 ## Examples
 
@@ -151,61 +174,23 @@ cd results/
 make all
 ```
 
-## Accessibility and Distribution
-
-### Current Availability
-- **GitHub Repository**: Available at https://github.com/Matt115A/NuCSI
-- **Installation**: Manual installation via git clone and conda/pip
-- **Documentation**: Comprehensive README and inline code documentation
-
-### Enhanced Accessibility Options
-
-#### 1. **Conda Package Distribution**
-```bash
-# Future: Install via conda
-conda install -c bioconda nucsi
-```
-
-#### 2. **PyPI Package Distribution**
-```bash
-# Future: Install via pip
-pip install nucsi
-```
-
-#### 3. **Docker Container**
-```dockerfile
-# Future: Dockerfile for containerized execution
-FROM continuumio/miniconda3
-RUN conda install -c bioconda fastp bwa samtools
-RUN pip install pandas numpy scipy matplotlib seaborn biopython pysam tqdm pyyaml
-COPY nucsi.py /usr/local/bin/
-RUN chmod +x /usr/local/bin/nucsi.py
-ENTRYPOINT ["nucsi.py"]
-```
-
-#### 4. **Galaxy Tool Integration**
-- Integration with Galaxy workflow system
-- Web-based interface for non-command-line users
-- Workflow sharing and reproducibility
-
-#### 5. **Web Application**
-- Flask/FastAPI-based web interface
-- File upload and processing
-- Real-time progress tracking
-- Result visualization
-
 ## Dependencies
 
 ### Required Tools
-- `fastp`: Quality control
-- `bwa`: Read mapping
-- `samtools`: BAM file processing
+- `fastp`: Quality control and adapter trimming
+- `bwa`: Read mapping to reference sequences
+- `samtools`: BAM file processing and indexing
 
 ### Python Packages
-- `pandas`, `numpy`, `scipy`
-- `matplotlib`, `seaborn`
-- `biopython`, `pysam`
-- `tqdm`, `pyyaml`
+- `pandas`: Data manipulation and analysis
+- `numpy`: Numerical computing
+- `scipy`: Statistical analysis
+- `matplotlib`: Plotting and visualization
+- `seaborn`: Statistical data visualization
+- `biopython`: Bioinformatics tools
+- `pysam`: SAM/BAM file processing
+- `tqdm`: Progress bars
+- `pyyaml`: YAML configuration file processing
 
 ## Troubleshooting
 
@@ -215,6 +200,7 @@ ENTRYPOINT ["nucsi.py"]
 2. **Plasmid reference not found**: Check file path and format
 3. **Pipeline fails**: Check dependencies are installed (fastp, bwa, samtools)
 4. **Memory issues**: Reduce quality cutoff or use smaller datasets
+5. **No alignments found**: Check plasmid reference matches your sequencing data
 
 ### Getting Help
 
