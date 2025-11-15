@@ -9,10 +9,10 @@ description = "Nuclease Cleavage Site Identification Tool"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Matthew Penner", email = "matthew.penner@crick.ac.uk"}
+    {name = "Matthew Penner", email = "mp957@cam.ac.uk"}
 ]
 maintainers = [
-    {name = "Matthew Penner", email = "matthew.penner@crick.ac.uk"}
+    {name = "Matthew Penner", email = "mp957@cam.ac.uk"}
 ]
 keywords = ["bioinformatics", "nuclease", "cleavage", "sequencing", "coverage", "analysis"]
 classifiers = [

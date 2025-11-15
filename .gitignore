@@ -1,6 +1,10 @@
 # NuCSI Project Gitignore
 # =======================
 
+# Manuscript_files
+
+METHODS_DRAFT.md
+
 # Python
 __pycache__/
 *.py[cod]
